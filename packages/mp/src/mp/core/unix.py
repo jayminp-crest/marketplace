@@ -437,11 +437,12 @@ def check_lock_file(project_path: pathlib.Path) -> None:
 def get_changed_files_from_main(
     base: str, head_sha: str, integration_path: pathlib.Path
 ) -> list[pathlib.Path]:
-    """Get a list of file names changed in a pull request.
+    """Return a list of file names changed in a pull request compared to the main branch.
 
     Args:
         base: The base branch of the PR.
         head_sha: The head commit SHA of the PR.
+        integration_path: The path to the integration directory.
 
     Returns:
         A list of changed file paths.
@@ -471,7 +472,7 @@ def get_changed_files_from_main(
 
 
 def get_file_content_from_main(file_path: pathlib.Path) -> str:
-    """Gets the content of a specific file from the 'main' branch.
+    """Return the content of a specific file from the 'main' branch.
 
     Args:
         file_path: The path to the file.
@@ -490,7 +491,7 @@ def get_file_content_from_main(file_path: pathlib.Path) -> str:
         results: sp.CompletedProcess[str] = sp.run(  # noqa: S603
             command, check=True, text=True, capture_output=True
         )
-        return results.stdout
+        return results.stdout  # noqa: TRY300
 
     except sp.CalledProcessError as error:
         error_output = error.stderr.strip()

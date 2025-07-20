@@ -22,16 +22,21 @@ import typer
 
 import mp.core.file_utils
 import mp.core.unix
-from mp.core.data_models.release_notes.metadata import ReleaseNote
 from mp.core.exceptions import FatalValidationError, NonFatalValidationError
 
-from ..core.data_models.pyproject_toml import PyProjectToml
 from .utils import load_to_pyproject_toml_object, load_to_release_note_object
 from .validation_results import ValidationResults, ValidationTypes
 
 if TYPE_CHECKING:
     import pathlib
     from collections.abc import Callable
+
+    from mp.core.data_models.pyproject_toml import PyProjectToml
+    from mp.core.data_models.release_notes.metadata import ReleaseNote
+
+
+REQUIRED_CHANGED_FILES_NUM: int = 2
+ERROR_MSG: str = "{0}"
 
 
 class PreBuildValidations:
@@ -58,7 +63,7 @@ class PreBuildValidations:
             try:
                 func()
             except NonFatalValidationError as e:
-                self.results.errors.append(f"[red]{e}[/red]\n")
+                self.results.errors.append(f"[red]{e}\n[/red]")
 
             except FatalValidationError as error:
                 rich.print(f"[bold red]{error}[/bold red]")
@@ -74,10 +79,7 @@ class PreBuildValidations:
         )
 
     def _get_validation_functions(self) -> list[Callable]:
-        return [
-            self._uv_lock_validation,
-            self._version_bump_validation
-        ]
+        return [self._uv_lock_validation, self._version_bump_validation]
 
     def _uv_lock_validation(self) -> None:
         self.results.errors.append("[yellow]Running uv lock validation [/yellow]")
@@ -87,62 +89,40 @@ class PreBuildValidations:
     def _version_bump_validation(self) -> None:
         self.results.errors.append("[yellow]Running version bump validation [/yellow]")
 
-        # if os.environ.get("GITHUB_EVENT_NAME") != "pull_request":
-        #     return
-
-        base = "main"
         head_sha = os.environ.get("GITHUB_SHA")
-
         if not head_sha:
-            raise NonFatalValidationError("The base branch or head sha couldn't be found")
+            return
 
         changed_files: list[pathlib.Path] = mp.core.unix.get_changed_files_from_main(
-            base, head_sha, self.integration_path
+            "main", head_sha, self.integration_path
         )
         if not changed_files:
             return
 
         relevant_files: list[pathlib.Path] = [
-            p for p in changed_files if p.name in ("pyproject.toml", "release_notes.yaml")
+            p for p in changed_files if p.name in {"pyproject.toml", "release_notes.yaml"}
         ]
-        if not relevant_files or len(relevant_files) != 2:
-            self.results.errors.append(
-                "[red]project.toml or/and release_notes.yml files must be updated before PR[/red]"
+        if not relevant_files or len(relevant_files) != REQUIRED_CHANGED_FILES_NUM:
+            raise NonFatalValidationError(
+                ERROR_MSG.format(
+                    "project.toml and release_notes.yml files must be updated before PR"
+                )
             )
-            return
 
         existing_files, new_files = PreBuildValidations._create_data_for_version_bump_validation(
             relevant_files
         )
-
-        if existing_files.get("toml") and existing_files.get("rn"):
-            new_version = existing_files["toml"]["new"].project.version
-            old_version = existing_files["toml"]["old"].project.version
-            if new_version != old_version + 1.0:
-                self.results.errors.append(
-                    "[red]Version must be incremented by exactly 1.0 in project.toml.[/red]"
-                )
-            else:
-                new_rn = existing_files["rn"].get("new")
-                if not new_rn or new_rn.version != new_version:
-                    self.results.errors.append("[red]The last release note's version must match the new version of the project.toml.[/red]")
-
-        elif new_files.get("toml"):
-            toml_version = new_files["toml"].project.version
-            if toml_version != 1.0:
-                self.results.errors.append("[red]New integration version must be 1.0.[/red]")
-            else:
-                new_rn = new_files.get("rn")
-                if not new_rn or new_rn.version != 1.0:
-                    self.results.errors.append("[red]New integration is missing a release note for version 1.0 or its version is incorrect.[/red]")
+        PreBuildValidations._version_bump_validation_run_checks(existing_files, new_files)
 
     @staticmethod
     def _create_data_for_version_bump_validation(
         relevant_files: list[pathlib.Path],
     ) -> tuple[dict, dict]:
-
-        existing_files: dict[str, dict[str, PyProjectToml | ReleaseNote]] = {"toml": {}, "rn": {}}
-        new_files: dict[str, PyProjectToml | ReleaseNote] = {}
+        existing_files: dict[str, dict[str, PyProjectToml | ReleaseNote | None]] = {
+            "toml": {},
+            "rn": {},
+        }
+        new_files: dict[str, PyProjectToml | ReleaseNote | None] = {}
 
         pyproject_path = next(p for p in relevant_files if p.name == "pyproject.toml")
         rn_path = next(p for p in relevant_files if p.name == "release_notes.yaml")
@@ -152,7 +132,9 @@ class PreBuildValidations:
             return notes[-1] if notes else None
 
         try:
-            existing_files["toml"]["new"] = load_to_pyproject_toml_object(pyproject_path.read_text())
+            existing_files["toml"]["new"] = load_to_pyproject_toml_object(
+                pyproject_path.read_text()
+            )
             old_toml_content = mp.core.unix.get_file_content_from_main(pyproject_path)
             existing_files["toml"]["old"] = load_to_pyproject_toml_object(old_toml_content)
 
@@ -166,8 +148,35 @@ class PreBuildValidations:
 
         return existing_files, new_files
 
-# doc all the functions
-# mp check
-# mypy
-# test the validation
-# add tests
+    @staticmethod
+    def _version_bump_validation_run_checks(existing_files: dict, new_files: dict) -> None:
+        if existing_files.get("toml") and existing_files.get("rn"):
+            toml_new_version = existing_files["toml"]["new"].project.version
+            toml_old_version = existing_files["toml"]["old"].project.version
+            if toml_new_version != toml_old_version + 1.0:
+                raise NonFatalValidationError(
+                    ERROR_MSG.format("The project.toml Version must be incremented by exactly 1.0.")
+                )
+            new_rn = existing_files["rn"].get("new")
+            if not new_rn or new_rn.version != toml_new_version:
+                raise NonFatalValidationError(
+                    ERROR_MSG.format(
+                        "The release note's version must match the new version of the project.toml."
+                    )
+                )
+
+        elif new_files.get("toml") and new_files.get("rn"):
+            toml_version = new_files["toml"].project.version
+            rn_version = new_files["rn"].project.version
+            if toml_version != rn_version != 1.0:
+                raise NonFatalValidationError(
+                    ERROR_MSG.format(
+                        "New integration project.toml and release_note.yaml version "
+                        "must be initialize to 1.0."
+                    )
+                )
+
+        else:
+            raise NonFatalValidationError(
+                ERROR_MSG.format("New integration missing project.toml and/or release_note.yaml.")
+            )

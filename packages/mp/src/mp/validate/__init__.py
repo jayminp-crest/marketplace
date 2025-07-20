@@ -333,6 +333,9 @@ def _run_pre_build_validations(integration_path: pathlib.Path) -> ValidationResu
 
 
 def _display_output(validation_results: list[ValidationResults]) -> None:
-    for res in validation_results:
-        for msg in res.errors:
-            rich.print(msg)
+    if not validation_results:
+        rich.print("[bold green]All validations passed[/bold green]")
+    else:
+        for res in validation_results:
+            for msg in res.errors:
+                rich.print(msg)
