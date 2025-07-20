@@ -434,7 +434,7 @@ def check_lock_file(project_path: pathlib.Path) -> None:
         raise NonFatalCommandError(error_output) from e
 
 
-def get_changed_files_from_main(
+def get_files_unmerged_to_main_branch(
     base: str, head_sha: str, integration_path: pathlib.Path
 ) -> list[pathlib.Path]:
     """Return a list of file names changed in a pull request compared to the main branch.
@@ -463,7 +463,11 @@ def get_changed_files_from_main(
         results: sp.CompletedProcess[str] = sp.run(  # noqa: S603
             command, check=True, text=True, capture_output=True
         )
-        return [pathlib.Path(path) for path in results.stdout.split("\n") if path]
+        return [
+            p
+            for path in results.stdout.strip().splitlines()
+            if path and (p := pathlib.Path(path)).exists()
+        ]
 
     except sp.CalledProcessError as error:
         error_output = error.stderr.strip()
@@ -471,7 +475,7 @@ def get_changed_files_from_main(
         raise NonFatalCommandError(error_output) from error
 
 
-def get_file_content_from_main(file_path: pathlib.Path) -> str:
+def get_file_content_from_main_branch(file_path: pathlib.Path) -> str:
     """Return the content of a specific file from the 'main' branch.
 
     Args:
