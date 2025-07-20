@@ -151,7 +151,7 @@ def _version_bump_validation_run_checks(
     existing_files: ExistingIntegrationFiles, new_files: NewIntegrationFiles
 ) -> None:
     msg: str
-    if existing_files.get("toml") and existing_files.get("rn"):
+    if existing_files["toml"].get("new") and existing_files["toml"].get("old"):
         toml_new_version = existing_files["toml"].get("new").project.version
         toml_old_version = existing_files["toml"].get("old").project.version
 
@@ -181,7 +181,4 @@ def _version_bump_validation_run_checks(
 def _rn_is_valid(new_notes: list[ReleaseNote], version_to_compare: float = 1.0) -> bool:
     if not new_notes:
         return False
-    for new_note in new_notes:
-        if new_note.version != version_to_compare:
-            return False
-    return True
+    return all(new_note.version == version_to_compare for new_note in new_notes)
