@@ -74,7 +74,7 @@ def load_to_release_note_object(text: str) -> list[ReleaseNote]:
     ]
 
 
-def load_to_pyproject_toml_object(text: str) -> PyProjectToml:
+def load_to_pyproject_toml_object_from_raw_string(text: str) -> PyProjectToml:
     """Load a toml string into a PyProjectToml object.
 
     Args:

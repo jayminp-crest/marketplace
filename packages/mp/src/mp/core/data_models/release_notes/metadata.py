@@ -177,3 +177,16 @@ class ReleaseNote(
         )
         mp.core.utils.remove_none_entries_from_mapping(non_built)
         return non_built
+
+    @classmethod
+    def from_non_built_raw_string(cls, raw_string: str) -> list[ReleaseNote]:
+        """Load a release note string to an ReleaseNote object.
+
+        Args:
+            raw_string: the text to load.
+
+        Returns:
+            a list of `ReleaseNote` objects.
+
+        """
+        return cls._from_non_built_integration_raw_text(raw_string)

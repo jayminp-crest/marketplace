@@ -355,19 +355,9 @@ class SequentialMetadata(Buildable[_BT, _NBT], abc.ABC, Generic[_BT, _NBT]):
         Returns:
             A metadata object
 
-        Raises:
-            ValueError: when the built JSON failed to be loaded
-
         """
         built: str = meta_path.read_text(encoding="utf-8")
-        try:
-            content: list[_BT] = json.loads(built)
-            results: list[Self] = [cls.from_built(c) for c in content]
-        except (ValueError, json.JSONDecodeError) as e:
-            msg: str = f"Failed to load json from {meta_path}\n{built}"
-            raise ValueError(mp.core.utils.trim_values(msg)) from e
-        else:
-            return results
+        return cls._from_non_built_integration_raw_text(built)
 
     @classmethod
     def _from_non_built_integration_path(cls, meta_path: pathlib.Path) -> list[Self]:
@@ -379,16 +369,29 @@ class SequentialMetadata(Buildable[_BT, _NBT], abc.ABC, Generic[_BT, _NBT]):
         Returns:
             A metadata object
 
-        Raises:
-            ValueError: when the non-built YAML failed to be loaded
-
         """
         non_built: str = meta_path.read_text(encoding="utf-8")
+        return cls._from_non_built_integration_raw_text(non_built)
+
+    @classmethod
+    def _from_non_built_integration_raw_text(cls, raw_text: str) -> list[Self]:
+        """Create the script's metadata object from the non-built integration's raw text.
+
+        Args:
+            raw_text: The path to the built metadata component
+
+        Returns:
+            A metadata object
+
+        Raises:
+            ValueError: when the built JSON failed to be loaded
+
+        """
         try:
-            content: list[_NBT] = yaml.safe_load(non_built)
+            content: list[_NBT] = yaml.safe_load(raw_text)
             results: list[Self] = [cls.from_non_built(c) for c in content]
         except (ValueError, yaml.YAMLError) as e:
-            msg: str = f"Failed to load yaml from {meta_path}\n{non_built}"
+            msg: str = "Failed to load yaml."
             raise ValueError(mp.core.utils.trim_values(msg)) from e
         else:
             return results

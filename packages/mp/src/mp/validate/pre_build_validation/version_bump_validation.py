@@ -20,14 +20,13 @@ from typing import TYPE_CHECKING, NotRequired, TypeAlias, TypedDict
 import mp.core.file_utils
 import mp.core.unix
 from mp.core.constants import PROJECT_FILE, RELEASE_NOTES_FILE
+from mp.core.data_models.pyproject_toml import PyProjectToml
+from mp.core.data_models.release_notes.metadata import ReleaseNote
 from mp.core.exceptions import NonFatalValidationError
-from mp.validate.utils import load_to_pyproject_toml_object, load_to_release_note_object
 
 if TYPE_CHECKING:
     import pathlib
 
-    from mp.core.data_models.pyproject_toml import PyProjectToml
-    from mp.core.data_models.release_notes.metadata import ReleaseNote
     from mp.validate.validation_results import ValidationResults
 
 
@@ -122,29 +121,35 @@ def _create_data_for_version_bump_validation(
 
     try:
         old_toml_content = mp.core.unix.get_file_content_from_main_branch(pyproject_path)
-        existing_files["toml"]["old"] = load_to_pyproject_toml_object(old_toml_content)
-        existing_files["toml"]["new"] = load_to_pyproject_toml_object(pyproject_path.read_text())
+        existing_files["toml"]["old"] = PyProjectToml.load_to_pyproject_toml_object_from_raw_string(
+            old_toml_content
+        )
+        existing_files["toml"]["new"] = PyProjectToml.load_to_pyproject_toml_object_from_raw_string(
+            pyproject_path.read_text()
+        )
 
         old_rn_content = mp.core.unix.get_file_content_from_main_branch(rn_path)
         existing_files["rn"]["old"] = _get_last_note(old_rn_content)
         existing_files["rn"]["new"] = _get_new_rn_notes(rn_path.read_text(), old_rn_content)
 
     except mp.core.unix.NonFatalCommandError:
-        new_files["toml"] = load_to_pyproject_toml_object(pyproject_path.read_text())
-        new_files["rn"] = load_to_release_note_object(rn_path.read_text())
+        new_files["toml"] = PyProjectToml.load_to_pyproject_toml_object_from_raw_string(
+            pyproject_path.read_text()
+        )
+        new_files["rn"] = ReleaseNote.from_non_built_raw_string(rn_path.read_text())
 
     return existing_files, new_files
 
 
 def _get_last_note(content: str) -> ReleaseNote | None:
-    notes = load_to_release_note_object(content)
+    notes = ReleaseNote.from_non_built_raw_string(content)
     return notes[-1] if notes else None
 
 
 def _get_new_rn_notes(new_rn_content: str, old_rn_content: str) -> list[ReleaseNote]:
-    new_notes: list[ReleaseNote] = load_to_release_note_object(new_rn_content)
-    old_notes: list[ReleaseNote] = load_to_release_note_object(old_rn_content)
-    return new_notes[len(old_notes):]
+    new_notes: list[ReleaseNote] = ReleaseNote.from_non_built_raw_string(new_rn_content)
+    old_notes: list[ReleaseNote] = ReleaseNote.from_non_built_raw_string(old_rn_content)
+    return new_notes[len(old_notes) :]
 
 
 def _version_bump_validation_run_checks(

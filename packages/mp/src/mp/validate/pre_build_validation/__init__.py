@@ -14,7 +14,9 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import pathlib
+from collections.abc import Callable
+from typing import TypeAlias
 
 import rich
 import typer
@@ -25,11 +27,7 @@ from mp.validate.validation_results import ValidationResults, ValidationTypes
 from .uv_lock_validation import uv_lock_validation
 from .version_bump_validation import version_bump_validation
 
-if TYPE_CHECKING:
-    import pathlib
-    from collections.abc import Callable
-
-
+ValidationFn: TypeAlias = Callable[[pathlib.Path, ValidationResults], None]
 REQUIRED_CHANGED_FILES_NUM: int = 2
 
 
@@ -73,5 +71,5 @@ class PreBuildValidations:
         )
 
     @classmethod
-    def _get_validation_functions(cls) -> list[Callable]:
+    def _get_validation_functions(cls) -> list[ValidationFn]:
         return [uv_lock_validation, version_bump_validation]
