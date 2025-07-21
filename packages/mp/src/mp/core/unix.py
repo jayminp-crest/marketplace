@@ -21,6 +21,8 @@ import subprocess as sp  # noqa: S404
 import sys
 from typing import IO, TYPE_CHECKING
 
+import rich
+
 from mp.core.exceptions import FatalValidationError, NonFatalValidationError
 
 from . import config, constants, file_utils
@@ -451,6 +453,7 @@ def get_files_unmerged_to_main_branch(
         NonFatalCommandError: If the git command fails.
 
     """
+    rich.print(str(integration_path))
     command: list[str] = [
         "/usr/bin/git",
         "diff",
