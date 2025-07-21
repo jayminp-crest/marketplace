@@ -453,7 +453,7 @@ def get_files_unmerged_to_main_branch(
         NonFatalCommandError: If the git command fails.
 
     """
-    rich.print(str(integration_path))
+    rich.print(integration_path)
     command: list[str] = [
         "/usr/bin/git",
         "diff",
