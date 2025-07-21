@@ -355,9 +355,19 @@ class SequentialMetadata(Buildable[_BT, _NBT], abc.ABC, Generic[_BT, _NBT]):
         Returns:
             A metadata object
 
+        Raises:
+            ValueError: when the built JSON failed to be loaded
+
         """
         built: str = meta_path.read_text(encoding="utf-8")
-        return cls._from_non_built_integration_raw_text(built)
+        try:
+            content: list[_BT] = json.loads(built)
+            results: list[Self] = [cls.from_built(c) for c in content]
+        except (ValueError, json.JSONDecodeError) as e:
+            msg: str = f"Failed to load json from {meta_path}\n{built}"
+            raise ValueError(mp.core.utils.trim_values(msg)) from e
+        else:
+            return results
 
     @classmethod
     def _from_non_built_integration_path(cls, meta_path: pathlib.Path) -> list[Self]:
