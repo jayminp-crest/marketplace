@@ -14,13 +14,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, NamedTuple, cast
-
-import toml
-import yaml
-
-from mp.core.data_models.pyproject_toml import PyProjectToml, PyProjectTomlFile
-from mp.core.data_models.release_notes.metadata import NonBuiltReleaseNote, ReleaseNote
+from typing import TYPE_CHECKING, NamedTuple
 
 if TYPE_CHECKING:
     import pathlib
@@ -53,36 +47,3 @@ def get_marketplace_paths_from_names(
         if (p := marketplace_path / n).exists():
             result.add(p)
     return result
-
-
-def load_to_release_note_object(text: str) -> list[ReleaseNote]:
-    """Load a release note string to an ReleaseNote object.
-
-    Args:
-        text: the text to load.
-
-    Returns:
-        a list of `ReleaseNote` objects.
-
-    """
-    rn_data: list[dict] = yaml.safe_load(text)
-    if not rn_data:
-        return []
-    return [
-        ReleaseNote._from_non_built(cast("NonBuiltReleaseNote", data))  # noqa: SLF001
-        for data in rn_data
-    ]
-
-
-def load_to_pyproject_toml_object_from_raw_string(text: str) -> PyProjectToml:
-    """Load a toml string into a PyProjectToml object.
-
-    Args:
-        text: the string to parse into a PyProjectToml object.
-
-    Returns:
-        a `PyProjectToml` object.
-
-    """
-    pyproject_data: PyProjectTomlFile = cast("PyProjectTomlFile", toml.loads(text))
-    return PyProjectToml.model_load(pyproject_data)
