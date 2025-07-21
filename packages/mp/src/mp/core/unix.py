@@ -457,7 +457,7 @@ def get_files_unmerged_to_main_branch(
         f"origin/{base}...{head_sha}",
         "--name-only",
         "--diff-filter=ACMRTUXB",
-        str(integration_path) + "/",
+        str(integration_path),
     ]
     try:
         results: sp.CompletedProcess[str] = sp.run(  # noqa: S603
